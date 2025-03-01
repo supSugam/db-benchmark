@@ -31,6 +31,8 @@ class SQLiteBenchmark:
             print("Database initialized fresh with the table.")
 
     async def replicate_and_upsert(self, keywords):
+        db_size_before = os.path.getsize(self.db_path)
+        start = time.time()
         async with aiosqlite.connect(self.db_path) as conn:
             start = time.time()
             for keyword in keywords:
@@ -43,8 +45,9 @@ class SQLiteBenchmark:
                     (keyword,),
                 )
             await conn.commit()
-            end = time.time()
-
-            print(
-                f"Time taken to upsert {len(keywords)} keywords: {end - start:.2f} seconds, Time per keyword: {(end - start) / len(keywords):.6f} seconds"
-            )
+        end = time.time()
+        print(
+            f"Time taken to upsert {len(keywords)} keywords: {end - start:.2f} seconds, Time per keyword: {(end - start) / len(keywords):.6f} seconds"
+        )
+        db_size_after = os.path.getsize(self.db_path)
+        print(f"DB Size Before: {db_size_before/1024} KB, DB Size After: {db_size_after/1024} KB")
