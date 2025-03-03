@@ -41,8 +41,8 @@ async def main():
         await psqldb.close()
     elif args.database == "sqlite":
         sqlitedb = SQLiteBenchmark()
-        await sqlitedb.initialize_db()
-        await sqlitedb.replicate_and_upsert(keywords)
+        sqlitedb.initialize_db()
+        sqlitedb.replicate_and_upsert(keywords)
 
 
 if __name__ == "__main__":
