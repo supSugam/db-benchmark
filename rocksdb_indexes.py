@@ -1,12 +1,12 @@
-import lmdb
-import struct
 import os
 import time
 import re
 import concurrent.futures
+import struct
+from rocksdict import Rdict, Options
 
 # Directory for databases
-BASE_DIR = "./document_keyword_dbs"
+BASE_DIR = "./document_keyword_rocksdbs"
 os.system(f"rm -rf {BASE_DIR}")
 os.makedirs(BASE_DIR, exist_ok=True)
 
@@ -22,14 +22,13 @@ DB_DIRS = {
 for dir_path in DB_DIRS.values():
     os.makedirs(dir_path, exist_ok=True)
 
-MAP_SIZE = 5 * 1024 * 1024 * 1024
-
-
+# Open RocksDB environments
+options = Options()
 envs = {
-    "idx_seq_date": lmdb.open(DB_DIRS["idx_seq_date"], map_size=MAP_SIZE),
-    "idx_seq_auth_date": lmdb.open(DB_DIRS["idx_seq_auth_date"], map_size=MAP_SIZE),
-    "idx_seq_score": lmdb.open(DB_DIRS["idx_seq_score"], map_size=MAP_SIZE),
-    "idx_seq_auth_score": lmdb.open(DB_DIRS["idx_seq_auth_score"], map_size=MAP_SIZE),
+    "idx_seq_date": Rdict(DB_DIRS["idx_seq_date"], options),
+    "idx_seq_auth_date": Rdict(DB_DIRS["idx_seq_auth_date"], options),
+    "idx_seq_score": Rdict(DB_DIRS["idx_seq_score"], options),
+    "idx_seq_auth_score": Rdict(DB_DIRS["idx_seq_auth_score"], options),
 }
 
 
@@ -41,7 +40,7 @@ def encode_key(elements):
             result += struct.pack(">q", elem)  # 8-byte big-endian integer
         elif isinstance(elem, str):
             bytes_data = elem.encode("utf-8")
-            result += struct.pack(">I")  # 4-byte length prefix
+            result += struct.pack(">I", len(bytes_data))  # 4-byte length prefix
             result += bytes_data
     return result
 
@@ -49,20 +48,19 @@ def encode_key(elements):
 def process_batch(db_name, batch):
     """Process a batch of records for a specific database."""
     env = envs[db_name]
-    with env.begin(write=True) as txn:
-        for kw_id, doc_id, subreddit, author, created_utc, score in batch:
-            doc_id_bytes = struct.pack(">q", doc_id)
+    for kw_id, doc_id, subreddit, author, created_utc, score in batch:
+        doc_id_bytes = struct.pack(">q", doc_id)
 
-            if db_name == "idx_seq_date":
-                key = encode_key([kw_id, created_utc])
-            elif db_name == "idx_seq_auth_date":
-                key = encode_key([kw_id, author, created_utc])
-            elif db_name == "idx_seq_score":
-                key = encode_key([kw_id, score])
-            elif db_name == "idx_seq_auth_score":
-                key = encode_key([kw_id, author, score])
+        if db_name == "idx_seq_date":
+            key = encode_key([kw_id, created_utc])
+        elif db_name == "idx_seq_auth_date":
+            key = encode_key([kw_id, author, created_utc])
+        elif db_name == "idx_seq_score":
+            key = encode_key([kw_id, score])
+        elif db_name == "idx_seq_auth_score":
+            key = encode_key([kw_id, author, score])
 
-            txn.put(key, doc_id_bytes)
+        env.put(key, doc_id_bytes)
 
     return f"Processed batch for {db_name}"
 
