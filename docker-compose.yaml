@@ -1,14 +1,15 @@
 services:
-  postgres:
+  db:
     image: postgres:latest
+    container_name: keywords_db_container
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: benchmark_db
+      POSTGRES_DB: keywords_db
     ports:
       - '5432:5432'
     volumes:
+      - ./data:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
-
 volumes:
   postgres_data:
